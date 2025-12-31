@@ -1,35 +1,62 @@
-//
-//  ContentView.swift
-//  ScheduleApp
-//
-//  Created by Dhriti Peshkar on 8/30/25.
-//
-
 import SwiftUI
+import SwiftData
+
+
+struct Task: Identifiable {
+    let id = UUID()
+    let name: String
+    let duration: Int
+}
 
 struct ContentView: View {
-    let apiKey: String
-
-    init() {
-            self.apiKey = Bundle.main.infoDictionary?["OPENAI_API_KEY"] as? String ?? "nil"
-            print("API Key:", self.apiKey) // should print your actual key
-    }
+    @Environment(\.modelContext) private var modelContext
+    @Query(sort: \Item.timestamp, order: .reverse) private var items: [Item]
+    
+    @State private var name: String = ""
+    @State private var duration: String = ""
 
     var body: some View {
-        VStack {
-            Text("Loaded API Key:")
-            Text(apiKey)
-                .font(.caption)
-                .foregroundColor(.gray)
+        NavigationStack {
+            VStack(spacing: 20) {
+                TextField("Task Name", text: $name)
+                    .textFieldStyle(.roundedBorder)
+                    .padding()
 
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
+                TextField("Duration (minutes)", text: $duration)
+                    .keyboardType(.numberPad)
+                    .textFieldStyle(.roundedBorder)
+                    .padding()
+
+                Button("Add Task") {
+                    guard let durationInt = Int(duration), !name.isEmpty else { return }
+                    let hours = durationInt / 60
+                    let minutes = durationInt % 60
+                    let newItem = Item(timestamp: Date(), name: name, durationHours: hours, durationMinutes: minutes)
+                    modelContext.insert(newItem)
+                    name = ""
+                    duration = ""
+                }
+                .padding()
+
+                NavigationLink(destination: QuizPart()) {
+                    Text("Schedule...")
+                }
+                .padding()
+
+                List(items) { item in
+                    HStack {
+                        Text(item.name)
+                        Spacer()
+                        Text(String(format: "%02d:%02d", item.durationHours, item.durationMinutes))
+                    }
+                }
+                .padding()
+            }
         }
-        .padding()
     }
 }
 
 #Preview {
     ContentView()
+        .modelContainer(for: Item.self, inMemory: true)
 }
